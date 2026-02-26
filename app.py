@@ -6,9 +6,6 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "ny_design_ultra_secure"
 
-if not os.path.exists("static/uploads"):
-    os.makedirs("static/uploads")
-
 UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
@@ -129,7 +126,7 @@ def login():
 def logout():
     session.clear()
     return redirect("/")
-
+# ================= ADMIN =================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if "admin" not in session:
@@ -146,7 +143,7 @@ def admin():
         # ================= ADICIONAR SERVIÇO =================
         if "add_servico" in request.form:
 
-            imagem = request.files["imagem"]
+            imagem = request.files.get("imagem")
             nome_img = ""
 
             if imagem and imagem.filename != "":
@@ -157,9 +154,9 @@ def admin():
                 INSERT INTO servicos(nome,descricao,valor,imagem)
                 VALUES(?,?,?,?)
             """, (
-                request.form["nome"],
-                request.form["descricao"],
-                request.form["valor"],
+                request.form.get("nome"),
+                request.form.get("descricao"),
+                request.form.get("valor"),
                 nome_img
             ))
             conn.commit()
@@ -167,7 +164,7 @@ def admin():
         # ================= ADICIONAR PORTFÓLIO =================
         elif "add_portfolio" in request.form:
 
-            imagem = request.files["imagem"]
+            imagem = request.files.get("imagem")
             nome_img = ""
 
             if imagem and imagem.filename != "":
@@ -179,7 +176,7 @@ def admin():
                 VALUES(?,?)
             """, (
                 nome_img,
-                request.form["link"]
+                request.form.get("link")
             ))
             conn.commit()
 
@@ -213,7 +210,7 @@ def admin():
         # ================= ATUALIZAR CONFIG =================
         elif "update_config" in request.form:
 
-            logo = request.files["logo"]
+            logo = request.files.get("logo")
 
             if logo and logo.filename != "":
                 nome_logo = secure_filename(logo.filename)
@@ -230,85 +227,16 @@ def admin():
                 logo_texto=?
                 WHERE id=1
             """, (
-                request.form["titulo"],
-                request.form["whatsapp"],
-                request.form["instagram"],
-                request.form["facebook"],
-                request.form["primary_color"],
-                request.form["logo_texto"]
+                request.form.get("titulo"),
+                request.form.get("whatsapp"),
+                request.form.get("instagram"),
+                request.form.get("facebook"),
+                request.form.get("primary_color"),
+                request.form.get("logo_texto")
             ))
             conn.commit()
 
     # Recarrega dados
-    config = c.execute("SELECT * FROM config WHERE id=1").fetchone()
-    servicos = c.execute("SELECT * FROM servicos").fetchall()
-    portfolio = c.execute("SELECT * FROM portfolio").fetchall()
-    depoimentos = c.execute("SELECT * FROM depoimentos").fetchall()
-
-    conn.close()
-
-    return render_template("admin.html",
-                           config=config,
-                           servicos=servicos,
-                           portfolio=portfolio,
-                           depoimentos=depoimentos)
-
-        # ================= EXCLUIR LOGO =================
-        if "delete_logo" in request.form:
-            if config["logo"]:
-                caminho = os.path.join(app.config["UPLOAD_FOLDER"], config["logo"])
-                if os.path.exists(caminho):
-                    os.remove(caminho)
-
-            c.execute("UPDATE config SET logo='' WHERE id=1")
-            conn.commit()
-
-        # ================= RESET CONFIG =================
-        elif "reset_config" in request.form:
-            c.execute("""
-            UPDATE config SET
-            titulo='N Design Web Premium',
-            whatsapp='',
-            instagram='',
-            facebook='',
-            cor='#c9a063',
-            logo='',
-            logo_texto='NY DESIGN'
-            WHERE id=1
-            """)
-            conn.commit()
-
-        # ================= ATUALIZAR CONFIG =================
-        elif "update_config" in request.form:
-
-            logo = request.files["logo"]
-
-            if logo and logo.filename != "":
-                nome_logo = secure_filename(logo.filename)
-                logo.save(os.path.join(app.config["UPLOAD_FOLDER"], nome_logo))
-                c.execute("UPDATE config SET logo=? WHERE id=1", (nome_logo,))
-
-            c.execute("""
-            UPDATE config SET
-            titulo=?,
-            whatsapp=?,
-            instagram=?,
-            facebook=?,
-            cor=?,
-            logo_texto=?
-            WHERE id=1
-            """, (
-                request.form["titulo"],
-                request.form["whatsapp"],
-                request.form["instagram"],
-                request.form["facebook"],
-                request.form["primary_color"],
-                request.form["logo_texto"]
-            ))
-
-            conn.commit()
-
-    # Recarrega dados após alterações
     config = c.execute("SELECT * FROM config WHERE id=1").fetchone()
     servicos = c.execute("SELECT * FROM servicos").fetchall()
     portfolio = c.execute("SELECT * FROM portfolio").fetchall()
