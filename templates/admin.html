@@ -99,7 +99,7 @@ text-decoration:none;
 
 {% if config['logo'] %}
 <p>Logo Atual:</p>
-<img src="{{ url_for('static', filename='uploads/' + config['logo']) }}" style="max-height:80px;">
+<img src="{{ config['logo'] }}" style="max-height:80px;">
 <button name="delete_logo" value="1" style="background:#aa4444;margin-top:10px;">
 🗑 Excluir Logo
 </button>
@@ -141,7 +141,7 @@ text-decoration:none;
 <input type="text" name="nome" placeholder="Nome do serviço" required>
 <textarea name="descricao" placeholder="Descrição" required></textarea>
 <input type="text" name="valor" placeholder="Valor" required>
-<input type="file" name="img" required>
+<input type="file" name="imagem" required>
 <button>Adicionar Serviço</button>
 </form>
 
@@ -154,7 +154,7 @@ text-decoration:none;
 <input type="text" name="nome" value="{{ s['nome'] }}">
 <textarea name="descricao">{{ s['descricao'] }}</textarea>
 <input type="text" name="valor" value="{{ s['valor'] }}">
-<input type="file" name="img">
+<input type="file" name="imagem">
 <button name="update_servico">Atualizar</button>
 <button name="delete_servico">Excluir</button>
 </form>
@@ -169,7 +169,7 @@ text-decoration:none;
 
 <form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="add_portfolio">
-<input type="file" name="img" required>
+<input type="file" name="imagem" required>
 <input type="text" name="link" placeholder="Link do site real" required>
 <button>Adicionar Projeto</button>
 </form>
@@ -180,7 +180,7 @@ text-decoration:none;
 <div class="card-item">
 <form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="id" value="{{ p['id'] }}">
-<input type="file" name="img">
+<input type="file" name="imagem">
 <input type="text" name="link" value="{{ p['link'] }}">
 <button name="update_portfolio">Atualizar</button>
 <button name="delete_portfolio">Excluir</button>

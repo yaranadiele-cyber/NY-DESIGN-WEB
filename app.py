@@ -1,23 +1,34 @@
-from flask import Flask, render_template, request, redirect, session
-import sqlite3
 import os
-from werkzeug.utils import secure_filename
+import sqlite3
+from flask import Flask, render_template, request, redirect, session
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+
+# ===== Variáveis de Ambiente =====
+load_dotenv()
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUD_NAME"),
+    api_key=os.environ.get("API_KEY"),
+    api_secret=os.environ.get("API_SECRET")
+)
 
 app = Flask(__name__)
-app.secret_key = "ny_design_ultra_secure"
+app.secret_key = os.environ.get("SECRET_KEY", "ny_design_ultra_secure")
 
-UPLOAD_FOLDER = "static/uploads"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+DATABASE = "database.db"
 
 # ================= BANCO =================
+def get_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    conn = sqlite3.connect("database.db")
+    conn = get_connection()
     c = conn.cursor()
 
-    # CONFIG
     c.execute("""
     CREATE TABLE IF NOT EXISTS config(
         id INTEGER PRIMARY KEY,
@@ -38,7 +49,6 @@ def init_db():
     (1,'N Design Web Premium','5599999999999','','','#c9a063','','NY DESIGN')
     """)
 
-    # SERVIÇOS
     c.execute("""
     CREATE TABLE IF NOT EXISTS servicos(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +59,6 @@ def init_db():
     )
     """)
 
-    # PORTFÓLIO
     c.execute("""
     CREATE TABLE IF NOT EXISTS portfolio(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +67,6 @@ def init_db():
     )
     """)
 
-    # DEPOIMENTOS
     c.execute("""
     CREATE TABLE IF NOT EXISTS depoimentos(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,14 +84,12 @@ init_db()
 # ================= SITE =================
 @app.route("/")
 def index():
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    conn = get_connection()
 
-    config = c.execute("SELECT * FROM config WHERE id=1").fetchone()
-    servicos = c.execute("SELECT * FROM servicos").fetchall()
-    portfolio = c.execute("SELECT * FROM portfolio").fetchall()
-    depoimentos = c.execute("SELECT * FROM depoimentos").fetchall()
+    config = conn.execute("SELECT * FROM config WHERE id=1").fetchone()
+    servicos = conn.execute("SELECT * FROM servicos").fetchall()
+    portfolio = conn.execute("SELECT * FROM portfolio").fetchall()
+    depoimentos = conn.execute("SELECT * FROM depoimentos").fetchall()
 
     conn.close()
 
@@ -93,24 +99,20 @@ def index():
                            portfolio=portfolio,
                            depoimentos=depoimentos)
 
-# ================= ENVIAR DEPOIMENTO =================
+# ================= DEPOIMENTO =================
 @app.route("/enviar-depoimento", methods=["POST"])
 def enviar_depoimento():
-    conn = sqlite3.connect("database.db")
-    c = conn.cursor()
-
-    c.execute("""
-    INSERT INTO depoimentos(nome,texto,estrelas)
-    VALUES(?,?,?)
+    conn = get_connection()
+    conn.execute("""
+        INSERT INTO depoimentos(nome,texto,estrelas)
+        VALUES(?,?,?)
     """, (
         request.form["nome"],
         request.form["texto"],
         request.form["estrelas"]
     ))
-
     conn.commit()
     conn.close()
-
     return redirect("/")
 
 # ================= LOGIN =================
@@ -126,98 +128,144 @@ def login():
 def logout():
     session.clear()
     return redirect("/")
+
 # ================= ADMIN =================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if "admin" not in session:
         return redirect("/login")
 
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    config = c.execute("SELECT * FROM config WHERE id=1").fetchone()
+    conn = get_connection()
 
     if request.method == "POST":
 
-        # ================= ADICIONAR SERVIÇO =================
+        # ===== ADICIONAR SERVIÇO =====
         if "add_servico" in request.form:
-
             imagem = request.files.get("imagem")
-            nome_img = ""
+            url_img = ""
+            if imagem and imagem.filename:
+                try:
+                    upload = cloudinary.uploader.upload(imagem)
+                    url_img = upload.get("secure_url")
+                except:
+                    url_img = ""
 
-            if imagem and imagem.filename != "":
-                nome_img = secure_filename(imagem.filename)
-                imagem.save(os.path.join(app.config["UPLOAD_FOLDER"], nome_img))
-
-            c.execute("""
+            conn.execute("""
                 INSERT INTO servicos(nome,descricao,valor,imagem)
                 VALUES(?,?,?,?)
             """, (
                 request.form.get("nome"),
                 request.form.get("descricao"),
                 request.form.get("valor"),
-                nome_img
+                url_img
             ))
             conn.commit()
 
-        # ================= ADICIONAR PORTFÓLIO =================
-        elif "add_portfolio" in request.form:
-
+        # ===== ATUALIZAR SERVIÇO =====
+        elif "update_servico" in request.form:
+            id = request.form.get("id")
             imagem = request.files.get("imagem")
-            nome_img = ""
 
-            if imagem and imagem.filename != "":
-                nome_img = secure_filename(imagem.filename)
-                imagem.save(os.path.join(app.config["UPLOAD_FOLDER"], nome_img))
+            if imagem and imagem.filename:
+                upload = cloudinary.uploader.upload(imagem)
+                url_img = upload.get("secure_url")
+                conn.execute("""
+                    UPDATE servicos
+                    SET nome=?, descricao=?, valor=?, imagem=?
+                    WHERE id=?
+                """, (
+                    request.form.get("nome"),
+                    request.form.get("descricao"),
+                    request.form.get("valor"),
+                    url_img,
+                    id
+                ))
+            else:
+                conn.execute("""
+                    UPDATE servicos
+                    SET nome=?, descricao=?, valor=?
+                    WHERE id=?
+                """, (
+                    request.form.get("nome"),
+                    request.form.get("descricao"),
+                    request.form.get("valor"),
+                    id
+                ))
+            conn.commit()
 
-            c.execute("""
+        # ===== EXCLUIR SERVIÇO =====
+        elif "delete_servico" in request.form:
+            conn.execute("DELETE FROM servicos WHERE id=?",
+                         (request.form.get("id"),))
+            conn.commit()
+
+        # ===== ADICIONAR PORTFOLIO =====
+        elif "add_portfolio" in request.form:
+            imagem = request.files.get("imagem")
+            url_img = ""
+            if imagem and imagem.filename:
+                upload = cloudinary.uploader.upload(imagem)
+                url_img = upload.get("secure_url")
+
+            conn.execute("""
                 INSERT INTO portfolio(imagem,link)
                 VALUES(?,?)
+            """, (url_img, request.form.get("link")))
+            conn.commit()
+
+        # ===== ATUALIZAR PORTFOLIO =====
+        elif "update_portfolio" in request.form:
+            id = request.form.get("id")
+            imagem = request.files.get("imagem")
+
+            if imagem and imagem.filename:
+                upload = cloudinary.uploader.upload(imagem)
+                url_img = upload.get("secure_url")
+                conn.execute("""
+                    UPDATE portfolio SET imagem=?, link=? WHERE id=?
+                """, (url_img, request.form.get("link"), id))
+            else:
+                conn.execute("""
+                    UPDATE portfolio SET link=? WHERE id=?
+                """, (request.form.get("link"), id))
+            conn.commit()
+
+        # ===== EXCLUIR PORTFOLIO =====
+        elif "delete_portfolio" in request.form:
+            conn.execute("DELETE FROM portfolio WHERE id=?",
+                         (request.form.get("id"),))
+            conn.commit()
+
+        # ===== ATUALIZAR DEPOIMENTO =====
+        elif "update_depoimento" in request.form:
+            conn.execute("""
+                UPDATE depoimentos
+                SET nome=?, texto=?, estrelas=?
+                WHERE id=?
             """, (
-                nome_img,
-                request.form.get("link")
+                request.form.get("nome"),
+                request.form.get("texto"),
+                request.form.get("estrelas"),
+                request.form.get("id")
             ))
             conn.commit()
 
-        # ================= EXCLUIR LOGO =================
-        elif "delete_logo" in request.form:
-
-            if config["logo"]:
-                caminho = os.path.join(app.config["UPLOAD_FOLDER"], config["logo"])
-                if os.path.exists(caminho):
-                    os.remove(caminho)
-
-            c.execute("UPDATE config SET logo='' WHERE id=1")
+        # ===== EXCLUIR DEPOIMENTO =====
+        elif "delete_depoimento" in request.form:
+            conn.execute("DELETE FROM depoimentos WHERE id=?",
+                         (request.form.get("id"),))
             conn.commit()
 
-        # ================= RESET CONFIG =================
-        elif "reset_config" in request.form:
-
-            c.execute("""
-                UPDATE config SET
-                titulo='N Design Web Premium',
-                whatsapp='',
-                instagram='',
-                facebook='',
-                cor='#c9a063',
-                logo='',
-                logo_texto='NY DESIGN'
-                WHERE id=1
-            """)
-            conn.commit()
-
-        # ================= ATUALIZAR CONFIG =================
+        # ===== CONFIGURAÇÕES =====
         elif "update_config" in request.form:
-
             logo = request.files.get("logo")
 
-            if logo and logo.filename != "":
-                nome_logo = secure_filename(logo.filename)
-                logo.save(os.path.join(app.config["UPLOAD_FOLDER"], nome_logo))
-                c.execute("UPDATE config SET logo=? WHERE id=1", (nome_logo,))
+            if logo and logo.filename:
+                upload = cloudinary.uploader.upload(logo)
+                conn.execute("UPDATE config SET logo=? WHERE id=1",
+                             (upload.get("secure_url"),))
 
-            c.execute("""
+            conn.execute("""
                 UPDATE config SET
                 titulo=?,
                 whatsapp=?,
@@ -236,12 +284,28 @@ def admin():
             ))
             conn.commit()
 
-    # Recarrega dados
-    config = c.execute("SELECT * FROM config WHERE id=1").fetchone()
-    servicos = c.execute("SELECT * FROM servicos").fetchall()
-    portfolio = c.execute("SELECT * FROM portfolio").fetchall()
-    depoimentos = c.execute("SELECT * FROM depoimentos").fetchall()
+        elif "delete_logo" in request.form:
+            conn.execute("UPDATE config SET logo='' WHERE id=1")
+            conn.commit()
 
+        elif "reset_config" in request.form:
+            conn.execute("""
+                UPDATE config SET
+                titulo='N Design Web Premium',
+                whatsapp='',
+                instagram='',
+                facebook='',
+                cor='#c9a063',
+                logo='',
+                logo_texto='NY DESIGN'
+                WHERE id=1
+            """)
+            conn.commit()
+
+    config = conn.execute("SELECT * FROM config WHERE id=1").fetchone()
+    servicos = conn.execute("SELECT * FROM servicos").fetchall()
+    portfolio = conn.execute("SELECT * FROM portfolio").fetchall()
+    depoimentos = conn.execute("SELECT * FROM depoimentos").fetchall()
     conn.close()
 
     return render_template("admin.html",
@@ -250,5 +314,6 @@ def admin():
                            portfolio=portfolio,
                            depoimentos=depoimentos)
 
+
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

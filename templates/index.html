@@ -25,7 +25,7 @@
 
         <div class="logo">
         {% if config['logo'] %}
-            <img src="{{ url_for('static', filename='uploads/' + config['logo']) }}" 
+            <img src="{{ config['logo'] }}" 
                  alt="Logo"
                  style="max-height:70px;">
         {% else %}
@@ -64,7 +64,7 @@ Solicitar Orçamento
 {% for p in portfolio %}
 <div class="carousel-item">
 <a href="{{ p.link }}" target="_blank">
-<img src="{{ url_for('static', filename='uploads/' + p.imagem) }}">
+<img src="{{ p.imagem }}">
 </a>
 </div>
 {% endfor %}
@@ -79,7 +79,7 @@ Solicitar Orçamento
 <div class="cards-grid">
 {% for s in servicos %}
 <div class="glass-card fade-up">
-<img src="{{ url_for('static', filename='uploads/' + s.imagem) }}">
+<img src="{{ s.imagem }}">
 <h3>{{ s.nome }}</h3>
 <p>{{ s.descricao }}</p>
 <span class="price">{{ s.valor }}</span>
