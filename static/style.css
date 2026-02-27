@@ -733,3 +733,73 @@ font-size:14px;
 }
 
 }
+
+/* ============================= */
+/* RESPONSIVIDADE MOBILE */
+/* ============================= */
+
+@media (max-width: 768px) {
+
+    /* ===== HERO ===== */
+    .hero h1{
+        font-size: 26px;
+        text-align: center;
+    }
+
+    /* ===== CARDS ===== */
+    .cards-grid{
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+
+    /* ===== FORM DEPOIMENTO ===== */
+    .depo-form{
+        width: 100%;
+        padding: 20px;
+    }
+
+    .input-premium{
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .btn-premium{
+        width: 100%;
+        padding: 12px;
+    }
+
+    /* ===== HEADER ===== */
+    .header-container{
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .menu-links{
+        display: flex;
+        gap: 15px;
+    }
+
+    /* ===== RODAPÉ ===== */
+    .footer-glass{
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        padding: 20px;
+    }
+
+    .social-left{
+        justify-content: center;
+        width: 100%;
+    }
+
+}
+
+@media (max-width: 480px){
+    .depo-form{
+        padding: 15px;
+    }
+
+    .section-title{
+        font-size: 22px;
+    }
+}
